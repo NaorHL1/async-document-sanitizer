@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+from sqlmodel import select
 
 from database import create_db_and_tables, DocumentRecord, SessionDep
 
@@ -49,3 +50,23 @@ async def ingest_document(
     session.commit()
 
     return {"task_id": "temp-task-123", "status": "PENDING"}
+
+
+@app.get("/api/v1/document/{doc_id}")
+async def get_document(
+    doc_id: str,
+    credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)],
+    session: SessionDep
+):
+    """
+    Retrieves a document's status and sanitized text from the database.
+    """
+
+    statement = select(DocumentRecord).where(DocumentRecord.doc_id == doc_id)
+
+    document = session.exec(statement).first()
+
+    if not document:
+        return {"error": "Document not found"}
+
+    return document
