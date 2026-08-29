@@ -14,6 +14,17 @@ A production-grade FastAPI microservice designed to ingest enterprise documents,
 - **Infrastructure:** Docker Compose (Postgres, Adminer, Redis)
 - *(Upcoming)* **Background Processing:** Celery & Redis
 
+### ADR 002: Asynchronous Background Processing
+* **Context:** PII redaction (Regex masking) in large documents is a CPU-bound operation. Running this on the main API event loop will block incoming requests and cause timeouts. We need a reliable mechanism to offload this processing.
+
+* **Alternatives Considered:** 
+  1. **Temporal.io:** Rejected. While providing excellent durable execution, the operational overhead (4-container control plane) is too heavy for this specific microservice scope.
+  2. **Taskiq / FastStream:** Rejected. Extremely fast and modern, but lacks mature enterprise monitoring tools and native polyglot/cross-language support.
+  3. **FastAPI BackgroundTasks:** Rejected. Lacks persistence; tasks are permanently lost if the API pod restarts.
+  4. **Celery + Redis:** Evaluated as the optimal choice.
+* **Decision:** Selected **Celery** as the task queue, with **Redis** as the message broker, and **Flower** for real-time observability.
+* **Reasoning:** Since PII regex scanning is CPU-bound rather than I/O-bound, Celery's synchronous worker model is not a bottleneck here. Furthermore, Celery provides a highly mature ecosystem, guarantees message persistence (zero data loss on API restart), and Flower provides enterprise-grade visual monitoring out-of-the-box.
+
 
 ## 💻 How to Run (Local Dev)
 1. Clone the repo.
