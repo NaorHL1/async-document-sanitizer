@@ -13,12 +13,9 @@ class DocumentRecord(SQLModel, table=True):
     sanitized_text: str | None = Field(default=None)
     status: str = Field(default="PENDING")
 
-# Using SQLite for intial local development to reduce dependencies(will migrate to Postgres via Docker in next phase).
-sqlite_file_name = "database.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
 
-connect_args = {"check_same_thread":False}
-engine = create_engine(sqlite_url,connect_args=connect_args)
+postgres_url = "postgresql://postgres:example@localhost:5433/postgres"
+engine = create_engine(postgres_url)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
