@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "fastapi[standard]>=0.141.1",
+    "sqlmodel>=0.0.42",
     "uvicorn[standard]>=0.52.4",
 ]
 
