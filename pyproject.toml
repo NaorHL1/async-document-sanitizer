@@ -1,0 +1,20 @@
+[project]
+name = "async-document-sanitizer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "naorHL1", email = "naorhl123@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "uvicorn[standard]>=0.52.4",
+]
+
+[project.scripts]
+async-document-sanitizer = "async_document_sanitizer:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
