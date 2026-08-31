@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from database import create_db_and_tables, DocumentRecord, SessionDep
-
+from celery_app import app
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,7 +43,6 @@ async def ingest_document(
     immediately with a PENDING status, while text will be queued
     for background processing.
     """
-    
     new_record = DocumentRecord(doc_id=doc.doc_id, status="PENDING")
 
     session.add(new_record)
