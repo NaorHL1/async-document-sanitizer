@@ -1,3 +1,6 @@
+import os
+import jwt
+
 from typing import Annotated
 from contextlib import asynccontextmanager
 
@@ -5,9 +8,10 @@ from fastapi import FastAPI, Response, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlmodel import select
-from database import create_db_and_tables, DocumentRecord, SessionDep
+from database import create_db_and_tables, DocumentRecord, SessionDep, HTTPException
 
 from tasks import mask_pii_document
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +31,18 @@ app = FastAPI(
 )
 
 security = HTTPBearer()
+
+
+JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-fde-signature-key")
+def verify_jwt(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]):
+    try:
+        # מנסים לפענח את הטוקן עם החותמת הסודית שלנו
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
+        return payload # אם הצליח, מחזירים את התוכן של הטוקן
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token signature")
 
 
 @app.post("/api/v1/documents/ingest", status_code=202)
@@ -49,6 +65,7 @@ async def ingest_document(
     new_record = DocumentRecord(doc_id=doc.doc_id, status="PENDING")
     session.add(new_record)
     session.commit()
+    token_payload: dict = Depends(verify_jwt)
 
     return {"task_id": task.id, "status": "PENDING"}
 
