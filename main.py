@@ -5,9 +5,9 @@ from fastapi import FastAPI, Response, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlmodel import select
-
 from database import create_db_and_tables, DocumentRecord, SessionDep
-from celery_app import app
+
+from tasks import mask_pii_document
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,12 +43,14 @@ async def ingest_document(
     immediately with a PENDING status, while text will be queued
     for background processing.
     """
-    new_record = DocumentRecord(doc_id=doc.doc_id, status="PENDING")
+    # Calling worker
+    task = mask_pii_document.delay(doc.doc_id,doc.text)
 
+    new_record = DocumentRecord(doc_id=doc.doc_id, status="PENDING")
     session.add(new_record)
     session.commit()
 
-    return {"task_id": "temp-task-123", "status": "PENDING"}
+    return {"task_id": task.id, "status": "PENDING"}
 
 
 @app.get("/api/v1/document/{doc_id}")
