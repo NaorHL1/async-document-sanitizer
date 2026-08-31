@@ -1,7 +1,11 @@
+import os
+
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from fastapi import Depends, FastAPI, HTTPException
+from sqlmodel import Field, Session, SQLModel, create_engine
+
+DB_PASSWORD = os.getenv("DB_PASSWORD", "example")
 
 class DocumentRecord(SQLModel, table=True):
     """
@@ -14,7 +18,7 @@ class DocumentRecord(SQLModel, table=True):
     status: str = Field(default="PENDING")
 
 
-postgres_url = "postgresql://postgres:example@localhost:5433/postgres"
+postgres_url = f"postgresql://postgres:{DB_PASSWORD}@db:5432/postgres"
 engine = create_engine(postgres_url)
 
 def create_db_and_tables():
