@@ -4,7 +4,7 @@ import jwt
 from typing import Annotated
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response, status, Depends
+from fastapi import FastAPI, Response, status, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlmodel import select
@@ -12,6 +12,7 @@ from database import create_db_and_tables, DocumentRecord, SessionDep, HTTPExcep
 
 from tasks import mask_pii_document
 
+JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-fde-signature-key")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,6 +33,16 @@ app = FastAPI(
 
 security = HTTPBearer()
 
+def verify_jwt(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]):
+    try:
+        # מנסים לפענח את הטוקן עם החותמת הסודית שלנו
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
+        return payload # אם הצליח, מחזירים את התוכן של הטוקן
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token signature")
+
 
 JWT_SECRET = os.getenv("JWT_SECRET", "super-secret-fde-signature-key")
 def verify_jwt(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]):
@@ -50,7 +61,8 @@ async def ingest_document(
     doc: Document,
     response: Response,
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    session: SessionDep
+    session: SessionDep,
+    token_payload: dict = Depends(verify_jwt)
 ):
     """
     Ingests a new document payload for asynchronous PII masking.
@@ -74,7 +86,8 @@ async def ingest_document(
 async def get_document(
     doc_id: str,
     credentials: Annotated[HTTPAuthorizationCredentials,Depends(security)],
-    session: SessionDep
+    session: SessionDep,
+    token_payload: dict = Depends(verify_jwt)
 ):
     """
     Retrieves a document's status and sanitized text from the database.
@@ -88,3 +101,10 @@ async def get_document(
         return {"error": "Document not found"}
 
     return document
+
+@app.get("/api/v1/dev/generate-token")
+def generate_dev_token():
+    """Dev endpoint to generate a valid JWT"""
+    payload = {"sub": "fde_admin"}
+    token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    return {"access_token": token}
